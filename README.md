@@ -13,6 +13,9 @@ claude plugin install trayo@trayo-plugins
 
 Run `/plugin configure trayo@trayo-plugins` and enter the key in the masked field.
 
+If you start Claude Code with `--strict-mcp-config`, its plugin MCP server is excluded. Add Trayo
+to the file passed with `--mcp-config` as shown in [the plugin guide](trayo/README.md).
+
 ## Codex
 
 ```bash
