@@ -2,7 +2,7 @@
 
 The official Trayo plugin gives AI coding and work agents access to Trayo's company and people search, account research, contact enrichment, signals, discovery, and events. It includes nine skills that turn those tools into common GTM workflows.
 
-You need a Trayo workspace API key from **Admin → API keys**.
+The packaged plugin uses a workspace API key from **Admin → API keys**. For OAuth, connect your MCP client directly to `https://api.trayo.ai/v1/mcp` and sign in to Trayo.
 
 ## Claude Code
 

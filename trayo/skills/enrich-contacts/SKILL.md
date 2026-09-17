@@ -5,6 +5,8 @@ description: Find work email addresses — and phone numbers when asked — for 
 
 # Enrich contacts
 
+Collection results may use `delivery: "file"`. In that case, `preview` and `metadata` are compact and may be shortened; download `file.downloadUrl` and process the complete JSON in code before selecting or importing rows. Keep the original `hasMore`/`nextCursor` pagination, and do not repeat the search to get its file. Use `output: "file"` when a download is wanted.
+
 1. `trayo_whoami` once. `lookups.email` and `lookups.phone` each carry `enabled`, `limit` (`null` is unlimited) and `used`: `limit - used` is what you can still dispatch. Tell the user that number before spending it, and stop if `canInitiate` is false — that refusal is the plan, not the request.
 2. Get the people into the workspace first. A lookup takes Trayo person ids and nothing else: the `id` on a find row belongs to the search, not to your workspace, and means nothing here.
    - Already there: `trayo_list_people`, filtered by `accountId`, `q` (a substring of the name), `updatedSince`, or `hasEmail: "false"` to leave out everyone who already has one. The boolean filters take the literal string `"true"` / `"false"`. Page with `nextCursor` until `hasMore` is false; `data[].id` is the id you want.

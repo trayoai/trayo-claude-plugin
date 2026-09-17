@@ -5,6 +5,8 @@ description: Find the right people at one or more companies for a stakeholder de
 
 # Find stakeholders
 
+Collection results may use `delivery: "file"`. In that case, `preview` and `metadata` are compact and may be shortened; download `file.downloadUrl` and process the complete JSON in code before selecting or importing rows. Keep the original `hasMore`/`nextCursor` pagination, and do not repeat the search to get its file. Use `output: "file"` when a download is wanted.
+
 1. `trayo_whoami` once.
 2. For each company, `trayo_search_stakeholders` `{ company: { website | linkedinUrl | name } or { accountId }, definition, limit }` — `definition` is the user's description of the roles that own, buy, influence and should be skipped; omit it to use the workspace's own, and read `definition.source` to see which applied — `source: "default"` means neither existed and the search fell back to seniority alone, which is worth fixing once with `trayo_set_workspace` rather than restating the roles on every call. 5 people per company by default, each with `whyThisPerson`; pass `limit` for more, up to 10.
 3. For many companies at once by title, `trayo_find_people` pages through Trayo's own data instead: `filters.title.any` (terms, with `all` and `exclude` to sharpen), plus EITHER `filters.companyWebsites` — the companies' own websites, up to 100, the same `website` a companies search returns — OR company filters such as `industries` and `hq`. The two are mutually exclusive, and with a `query` a people search may filter on `title` only. A filters-only people search needs a title (`any` or `all`) and one of those company filters: `companyWebsites`, or at least one indexed filter — `industries`, `hq.cities`, `hq.states` or `headcount`. Titles alone answer `find_needs_indexed_filter`, which means the filters cannot select a set, not that nobody matched.
@@ -15,3 +17,7 @@ description: Find the right people at one or more companies for a stakeholder de
 8. Output: `trayo_add_to_list { name, members: [{ personId, via: 'find' }] }` for the working set the app shows, and a CSV of name, title, company and email when the user wants the file. Say how many of the people have no address yet, and why.
 
 Stakeholder search answers in 5–20 s per company; run companies one at a time and report progress. `company_not_found` is `do_not_retry` — the company could not be resolved from what you sent, so send its website or company profile URL instead.
+
+## Scale an approved people preview
+
+For a total such as 1,000, call `trayo_find_people` again with the approved exact filters, sort and `perCompany`, `limit: 1000`, `output: "file"`, and no cursor. Preserve title criteria and the per-company cap. Download `file.downloadUrl` in code; check `rowCount`, `metadata.collection.stopReason`, and `hasMore`. Continue with `nextCursor` and the remaining count if needed. Sentence and single-company stakeholder searches keep their existing limits; first preview exact filters preserving the approved meaning.

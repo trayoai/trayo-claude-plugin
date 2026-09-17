@@ -5,7 +5,9 @@ description: Research one account — what the company does, why now, who the st
 
 # Research an account
 
-1. `trayo_research_company` with `{ company: { website } }`, or `{ company: { accountId } }` when it is in the workspace — `accountId` goes on its own, never beside `website`, `linkedinUrl` or `name`. It answers the overview in `research`, the same content as `reportMarkdown`, and the company as resolved.
+Collection results may use `delivery: "file"`. In that case, `preview` and `metadata` are compact and may be shortened; download `file.downloadUrl` and process the complete JSON in code before selecting or importing rows. Keep the original `hasMore`/`nextCursor` pagination, and do not repeat the search to get its file. Use `output: "file"` when a download is wanted.
+
+1. If the user named a company that may already be in the workspace, call `trayo_list_accounts` with `{ q: name }` to recover its `accountId`; check the returned name and URL before using it. Then call `trayo_research_company` with `{ company: { accountId } }`, or `{ company: { website } }` when it is not there — `accountId` goes on its own, never beside `website`, `linkedinUrl` or `name`. It answers the overview in `research`, the same content as `reportMarkdown`, and the company as resolved.
 2. `trayo_search_stakeholders` with the same `company` and, if the user described the roles they sell to, that prose as `definition`: 5 people with `whyThisPerson` by default, so pass `limit: 10` when the user wants up to ten. Read `candidates` next to `people` — a positive `candidates` with an empty `people` means none of them fit the definition, which is an answer, not a failure.
 3. If the company is an account in the workspace, `trayo_list_events` with `{ accountId }` for what has happened at it; otherwise say events need the account imported and a discovery run (skill `scan-for-signal`).
 4. Hand back one brief: what they do, why now, the stakeholders with their reasons, recent events with their `eventDate` and the `signalKeys` each one matched — every claim from a tool result, none invented.

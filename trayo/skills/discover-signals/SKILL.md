@@ -5,6 +5,8 @@ description: Track a list of companies in Trayo and read what happens at them �
 
 # Track companies and read what happens at them
 
+Collection results may use `delivery: "file"`. In that case, `preview` and `metadata` are compact and may be shortened; download `file.downloadUrl` and process the complete JSON in code before selecting or importing rows. Keep the original `hasMore`/`nextCursor` pagination, and do not repeat the search to get its file. Use `output: "file"` when a download is wanted.
+
 The core Trayo loop, with the `trayo_*` tools.
 
 ## Before anything
@@ -30,3 +32,7 @@ The core Trayo loop, with the `trayo_*` tools.
 ## What to hand back
 
 The companies imported (and skipped), the signal used, the run id, `eventsNew`, and the event titles with the account names you imported — events carry `accountId`, not names, so map each one back to the row you sent. Offer `trayo_list_events` for more.
+
+## Scale an approved event preview
+
+For “now give me 1,000,” call `trayo_list_events` with the approved account, signal, date, state and settled `discoveryRunId` filters, `limit: 1000`, `output: "file"`, `expand: "people,signals"`, and no cursor. The total counts events including preview matches, with existing stakeholders nested. Download `file.downloadUrl` in code; check actual `rowCount`, `metadata.collection.stopReason`, and `hasMore`. Continue with `nextCursor` and the remaining count if needed. This reads existing events and attached people; it does not run discovery or find missing stakeholders.

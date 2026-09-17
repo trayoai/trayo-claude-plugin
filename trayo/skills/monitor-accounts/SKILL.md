@@ -5,6 +5,8 @@ description: Watch a set of accounts — given as a list of companies, or as a d
 
 # Monitor accounts for signals
 
+Collection results may use `delivery: "file"`. In that case, `preview` and `metadata` are compact and may be shortened; download `file.downloadUrl` and process the complete JSON in code before selecting or importing rows. Keep the original `hasMore`/`nextCursor` pagination, and do not repeat the search to get its file. Use `output: "file"` when a download is wanted.
+
 Two shapes of the same job. The user either **names the accounts** ("watch my book"), or **describes them** ("AI companies in the US"). Only step 2 differs.
 
 Trayo has no push: what you build is a backfill plus a repeating read. Say so plainly, and never describe it as an alert that arrives on its own.
@@ -43,3 +45,7 @@ Trayo has no push: what you build is a backfill plus a repeating read. Say so pl
 9. **Output.** A digest: account, what fired, when, why it matters, and who to talk to. For a recurring job, offer to write the user a script they run on their own schedule — `GET /v1/events?discoveredSince=…&signalKeys=…` with their key, posting to team chat or email. The clock is theirs; nothing in Trayo holds it.
 
 An empty check is a real answer — but before reporting a quiet week, re-read `monitoring` from `trayo_whoami`. A workspace the standing scan stopped covering reads exactly like a workspace where nothing happened.
+
+## Scale an approved event preview
+
+For “now give me 1,000,” call `trayo_list_events` with the approved account, signal, date, state and settled `discoveryRunId` filters, `limit: 1000`, `output: "file"`, `expand: "people,signals"`, and no cursor. The total counts events including preview matches, with existing stakeholders nested. Download `file.downloadUrl` in code; check actual `rowCount`, `metadata.collection.stopReason`, and `hasMore`. Continue with `nextCursor` and the remaining count if needed. This reads existing events and attached people; it does not run discovery or find missing stakeholders.
