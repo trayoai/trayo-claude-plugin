@@ -1,51 +1,71 @@
 ---
 name: monitor-accounts
-description: Watch a set of accounts — given as a list of companies, or as a definition of the kind of company — for a set of signals, backfill their recent history, and report what is new on every later check. Use when the user asks to "monitor", "keep an eye on", "alert me when", "watch these accounts for…", or "what's new at our accounts since…".
+description: Watch named accounts or accounts that match a definition for selected signals. Backfill their recent history and report new events on later checks. Use when the user asks to monitor accounts, keep an eye on companies, or check what changed since the last review.
 ---
 
 # Monitor accounts for signals
 
 Collection results may use `delivery: "file"`. In that case, `preview` and `metadata` are compact and may be shortened; download `file.downloadUrl` and process the complete JSON in code before selecting or importing rows. Keep the original `hasMore`/`nextCursor` pagination, and do not repeat the search to get its file. Use `output: "file"` when a download is wanted.
 
-Two shapes of the same job. The user either **names the accounts** ("watch my book"), or **describes them** ("AI companies in the US"). Only step 2 differs.
+Trayo provides events through repeated reads. A recurring check needs a schedule in the calling agent or a script.
 
-Trayo has no push: what you build is a backfill plus a repeating read. Say so plainly, and never describe it as an alert that arrives on its own.
+A settled run with no reported error does not prove that every saved account was searched. Report the events returned and any reported failures. Describe an empty digest as "no new events returned", rather than proof that nothing happened at those accounts. The checkpoint tracks successful reads, not verified scan coverage.
 
-## Set up (once)
+## Set up once
 
-1. **`trayo_whoami`.** Read `monitoring`. `enabled: false` means this workspace is not scanned on a schedule at all, so the ONLY events that will ever appear are from runs you start — say so plainly before you promise ongoing coverage, and plan to run discovery yourself. It says whether, not how often: pick whatever checking rhythm suits the user, and never tell them a schedule Trayo has not promised.
+1. Call `trayo_whoami` and read `monitoring`. This reports whether a standing schedule is enabled, but the public tools do not verify current automatic coverage for each saved account. Plan an explicit discovery for the saved list on every scheduled check. Do not promise a scan frequency that Trayo does not report.
+2. Call `trayo_get_workspace`. If `stakeholderCriteria` is null, define the roles that matter with `trayo_set_workspace` before discovery. If the user has not described their product or buyers, ask for that context. This definition affects future events and does not attach people to older events.
+3. Build the account set:
+   - For named accounts, call `trayo_import_accounts` with up to 200 `{ name, url, linkedinHandle }` rows. Use a URL with its scheme and include the LinkedIn company handle when known.
+   - For a company definition, call `trayo_find_companies`. Follow `nextCursor` for a filters-only search. A `query` search returns one ranked page. Import the results using each row's `url` and read `droppedUnaddressable` before reporting a count.
+   - Collect `created[].id` and every duplicate row's `existingId`. New accounts are assigned to the acting user. Duplicate imports do not change identity or assignment.
+4. Save these IDs with `trayo_add_to_list`, using account members and their `via` value. For more than 200 members, send `name` once, then use the returned `list.id` for later batches. Store `list.id` so later checks use the same account set.
+5. Create one signal per business event with `trayo_create_signal`. Keep the `signalKeys` for later checks. Use one discovery for all selected signals.
 
-2. **`trayo_get_workspace`. If `stakeholderCriteria` is null, set it now with `trayo_set_workspace` before anything else.** The people attached to each event — the ones carrying a `reasoning` for why that person matters to that event — are only attached when a definition exists when the run happens, and it is never applied backwards. Set it late and every event you already collected keeps zero people. Write it as prose: the roles that own or buy what the user sells, the roles that influence the decision, the roles to skip. If the user has not said what they sell, ask; it is one question and it steers everything downstream.
+## Backfill and report
 
-3. **The accounts.**
-   - *Named accounts:* `trayo_import_accounts` with `{ name, url }` rows, the `url` with its scheme, up to 200 per call. Collect `created[].id`, and `existingId` from every `skipped` row with `reasonCode: "duplicate"` — those companies are already in the workspace and must still be watched.
-   - *A definition:* `trayo_find_companies` with `filters` for anything exact (industry, headcount, country, funding) and follow `nextCursor` until you have the set the user asked for; a `query` sentence returns one ranked page and takes no cursor. Then import those rows — pass each row's `url`, not its bare `website`. Read `droppedUnaddressable` in the answer before you report a count.
-   - Either way, **put the set on a list**: `trayo_add_to_list { name, members: [{ accountId, via }] }`. The list is how the set survives to the next check — a later session reads it back with `trayo_list_lists` then `trayo_get_list_members` instead of rebuilding it, and a rebuilt set silently drifts from the one that was backfilled.
+1. Record `checkStartedAt` as a full ISO-8601 timestamp before starting the backfill.
+2. Call `trayo_run_discovery` with the saved `accountIds`, selected `signalKeys`, `lookbackDays: 90`, and `waitSeconds: 45`. Limit each run to 200 accounts so `blockedSignals` can return every affected account ID. Wait for each run to settle before starting the next.
+3. While `settled` is false, call `trayo_get_discovery` with its `runId` and `waitSeconds: 45`. Wait for `settledAt` before reporting counts or reading final results.
+4. Read `run.error` and `run.blockedSignals`. Apply the recovery steps below and report failures and blocked accounts.
+5. For each settled run, call `trayo_list_events` with these arguments:
 
-4. **The signals, one per business event to watch.** `trayo_create_signal` with a snake_case `signalKey`, a `type` (`news`, `jobs`, `job_change`) and `detects` in plain prose. Several signals are one run, not one run each: every event names the signals it matched. Keep every key — the repeating check filters on them.
+   ```json
+   { "discoveryRunId": "<run.id>", "expand": "all" }
+   ```
 
-5. **Backfill.** `trayo_run_discovery { accountIds, signalKeys, lookbackDays: 90, waitSeconds: 45 }`, then `trayo_get_discovery { runId, waitSeconds: 45 }` while `settled` is false. A run is final only when `settledAt` is set.
-   - **A run takes at most 500 accounts.** More than that is several runs over slices of the set, each with the same `signalKeys` and `lookbackDays`; wait for each to settle before starting the next so the work does not pile up.
-   - `lookbackDays` sets how far back news counts **and** how hard the search digs, so 90 days over hundreds of accounts is not a fast call. Tell the user it is running.
-   - Read `blockedSignals` before you believe a small number. `account_not_ready` means hiring data for those companies has not resolved yet, so `jobs` and `job_change` skipped them; `news` is unaffected. `company_not_found` means re-running will not help.
-   - `eventsNew: 0` on a workspace that has run before is usually not silence: an event already in the workspace is not written twice. Read the events rather than trusting the counter.
-
-6. **Report the backfill** with `trayo_list_events { signalKeys, expand: "all" }`, following `nextCursor`. Per event: `accountName` (the account is named on every event — you never need to map an id back yourself), `title`, `eventDate`, the matched `signalKeys`, and `whyItMatters` — the paragraph discovery wrote relating this event to this workspace. Quote it; never invent one. It is null on older events and on some signal types, and then `summary` is what you have. Name the signal from `signalKeys`, not `signalType`: the type is only the kind of source. `expand` adds each match's `confidence` and `evidence`, and the `people` array with a per-person `reasoning`.
-
-7. **Stakeholders.** If the user wants people per account rather than per event, `trayo_search_stakeholders` on the accounts that fired, and `trayo_get_contacts` for contact details on the people that matter. Contact lookups draw on the workspace allowance `trayo_whoami` reports.
+   Follow `nextCursor` until `hasMore` is false. Keep `discoveryRunId` and `expand` on every page. This filter limits results to that run's accounts, signals, and lookback window, including matches from earlier runs.
+6. Report `accountName`, `title`, `eventDate`, matched `signalKeys`, and `whyItMatters`. If `whyItMatters` is null, use `summary`. Include people and their `reasoning` when present. Do not infer an empty result from `eventsNew: 0`.
+7. After reading all pages and saving the digest, store the delivered event IDs to remove duplicates between checks. Store `lastCheckedAt = checkStartedAt` only when no reported failures or blocked accounts remain. If a read or digest save fails, keep the previous checkpoint too.
 
 ## Every later check
 
-8. **`trayo_list_events { discoveredSince: <the time you last looked>, signalKeys: [...] }`**, following `nextCursor`.
-   - `discoveredSince` is when Trayo **found** the event; `since` is when the news **happened**. Use `discoveredSince` here, always. An article published three weeks ago that reached the workspace this morning is new to the user and `since` would drop it.
-   - Pass a full ISO-8601 timestamp you compute yourself — `yesterday` and `7d` are rejected — and store the timestamp you used, not the events you saw.
-   - `signalKeys` takes several keys at once and matches any of them, so one read covers every signal being watched.
-   - `state` defaults to live, so events Trayo has withdrawn are already excluded.
+1. Load the saved list with `trayo_get_list_members`, using `listId` and `kind: "account"`. If needed, find the saved list through `trayo_list_lists`. Read every member page before collecting the account IDs. Keep `listId` and `kind` on every page.
+2. Record a new `checkStartedAt` before discovery or event reads. Keep the previous `lastCheckedAt` unchanged during this check.
+3. Run discovery for every saved account and all watched signals, even when `monitoring.enabled` is true. Account assignments can change after setup, so neither an earlier import nor a successful backfill confirms current automatic coverage. Wait for every run to settle and apply the backfill batching and recovery rules. Include reported failures and blocked accounts in the digest.
+4. For each saved account ID, call `trayo_list_events` with these arguments:
 
-9. **Output.** A digest: account, what fired, when, why it matters, and who to talk to. For a recurring job, offer to write the user a script they run on their own schedule — `GET /v1/events?discoveredSince=…&signalKeys=…` with their key, posting to team chat or email. The clock is theirs; nothing in Trayo holds it.
+   ```json
+   { "accountId": "<saved account ID>", "signalKeys": ["<watched signal key>"], "discoveredSince": "<lastCheckedAt>", "expand": "all" }
+   ```
 
-An empty check is a real answer — but before reporting a quiet week, re-read `monitoring` from `trayo_whoami`. A workspace the standing scan stopped covering reads exactly like a workspace where nothing happened.
+   Send every watched signal key in `signalKeys`. Follow every `nextCursor` with the same `accountId`, `signalKeys`, `discoveredSince`, and `expand`.
+   Do not reuse a backfill `discoveryRunId` here because its time window excludes later events.
+   `discoveredSince` selects when Trayo found an event. `since` selects when the event happened and can exclude newly found older news.
+   Use a full ISO-8601 timestamp. Relative dates such as `yesterday` are invalid. The default event state is live.
+5. Remove event IDs already delivered and save the digest. Advance `lastCheckedAt` to `checkStartedAt` only after reported discovery failures are resolved, every account page is read, and the digest is saved. If any account still reports an error or blocked signal, or any read or save fails, retain the previous checkpoint. The timestamp boundary is inclusive, so keep delivered IDs to avoid repeated entries.
+6. For a REST script, use the same account scope on every page: `GET /v1/events?accountId=…&signalKeys=…&discoveredSince=…&expand=all`.
+
+## Recover failed or blocked runs
+
+If a settled batch has more than one account and `run.error` is not null, retry each requested account in a separate discovery with the same signals and lookback window. Do this once. Individual runs identify accounts that still report an error, even when the batch reports only a count or another error replaces its coverage warning. If a single-account run still reports an error, stop retrying it and report the account and reason. For an unassigned account, ask a workspace admin to assign it in Trayo. Keep the previous checkpoint while any account still reports an error or blocked signal.
+
+These recovery steps apply to every signal type, including `news`. While a run is active, keep polling it.
+
+- For `account_not_ready`, wait for the run to settle, then retry the affected account IDs.
+- For `company_not_found`, check the account identity. Use `PATCH /v1/accounts/{id}` with the correct `linkedinHandle`, or a corrected website `url` when no handle is known. This REST call requires a workspace API key with `accounts:write`. Importing the same hostname again skips the existing account and does not repair it. If you only have MCP OAuth access, ask a workspace admin for the REST repair. After the update, start a new discovery for the affected IDs.
+- If an identical MCP call returns the old run, wait for its five-minute deduplication window to expire.
 
 ## Scale an approved event preview
 
-For “now give me 1,000,” call `trayo_list_events` with the approved account, signal, date, state and settled `discoveryRunId` filters, `limit: 1000`, `output: "file"`, `expand: "people,signals"`, and no cursor. The total counts events including preview matches, with existing stakeholders nested. Download `file.downloadUrl` in code; check actual `rowCount`, `metadata.collection.stopReason`, and `hasMore`. Continue with `nextCursor` and the remaining count if needed. This reads existing events and attached people; it does not run discovery or find missing stakeholders.
+To expand an approved preview, keep the filters that produced it. For a backfill, keep its settled `discoveryRunId`. For a later check, keep `accountId`, `signalKeys`, `discoveredSince`, and the selected event state. Call `trayo_list_events` with `limit: 1000`, `output: "file"`, `expand: "people,signals"`, and no cursor. The total counts events including preview matches, with existing stakeholders nested. Download `file.downloadUrl` in code; check actual `rowCount`, `metadata.collection.stopReason`, and `hasMore`. Continue with `nextCursor` and the remaining count if needed. This reads existing events and attached people; it does not run discovery or find missing stakeholders.

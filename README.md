@@ -1,6 +1,6 @@
 # Trayo plugin
 
-The official Trayo plugin gives AI coding and work agents access to Trayo's company and people search, account research, contact enrichment, signals, discovery, and events. It includes nine skills that turn those tools into common GTM workflows.
+The official Trayo plugin gives AI coding and work agents access to Trayo's company and people search, lookalikes, account research, contact enrichment, signals, discovery, and events. It includes nine skills that turn those tools into common GTM workflows.
 
 The packaged plugin uses a workspace API key from **Admin → API keys**. For OAuth, connect your MCP client directly to `https://api.trayo.ai/v1/mcp` and sign in to Trayo.
 
@@ -12,6 +12,8 @@ claude plugin install trayo@trayo-plugins
 ```
 
 Run `/plugin configure trayo@trayo-plugins` and enter the key in the masked field.
+
+Start a new Claude Code session, then run `/mcp`. The `trayo` server should be connected with 26 tools.
 
 If you start Claude Code with `--strict-mcp-config`, its plugin MCP server is excluded. Add Trayo
 to the file passed with `--mcp-config` as shown in [the plugin guide](trayo/README.md).
@@ -26,6 +28,11 @@ codex mcp add trayo --url https://api.trayo.ai/v1/mcp --bearer-token-env-var TRA
 
 Make `TRAYO_API_KEY` available to Codex through your existing secret setup or `~/.codex/.env`, then restart Codex.
 
-Claude Cowork and other MCP clients are also supported. After setup, call `trayo_whoami`; a successful response confirms the connection and key.
+For Claude Cowork, install the plugin for its skills, then add a custom connector at
+`https://api.trayo.ai/v1/mcp`. Choose **No sign-in** and add the request header
+`x-api-key: <your workspace API key>`. Other MCP clients may use that header or
+`Authorization: Bearer <key>`.
+
+After setup, call `trayo_whoami`; a successful response confirms the connection and key.
 
 See [the plugin guide](trayo/README.md) for complete setup steps, the available skills, required key scopes, and current limitations.

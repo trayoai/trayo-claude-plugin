@@ -11,7 +11,7 @@
     "api_key": {
       "type": "string",
       "title": "Trayo API key",
-      "description": "A workspace API key from Admin → API keys. Sent as Authorization: Bearer on every call; never shown to the model.",
+      "description": "A workspace API key from Admin → API keys. Sent as Authorization: Bearer on every call; never included in the conversation.",
       "sensitive": true,
       "required": true
     }
