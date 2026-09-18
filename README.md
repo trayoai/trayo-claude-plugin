@@ -1,8 +1,8 @@
 # Trayo plugin
 
-The official Trayo plugin gives AI coding and work agents access to Trayo's company and people search, lookalikes, account research, contact enrichment, signals, discovery, and events. It includes nine skills that turn those tools into common GTM workflows.
+The official Trayo plugin gives AI coding and work agents access to Trayo's company and people search, lookalikes, account research, contact enrichment, signals, discovery, and events. It includes ten skills that turn those tools into common GTM workflows.
 
-The packaged plugin uses a workspace API key from **Admin → API keys**. For OAuth, connect your MCP client directly to `https://api.trayo.ai/v1/mcp` and sign in to Trayo.
+You need a Trayo workspace API key from **Admin → API keys**.
 
 ## Claude Code
 
@@ -15,8 +15,9 @@ Run `/plugin configure trayo@trayo-plugins` and enter the key in the masked fiel
 
 Start a new Claude Code session, then run `/mcp`. The `trayo` server should be connected with 26 tools.
 
-If you start Claude Code with `--strict-mcp-config`, its plugin MCP server is excluded. Add Trayo
-to the file passed with `--mcp-config` as shown in [the plugin guide](trayo/README.md).
+If you start Claude Code with `--strict-mcp-config`, add Trayo to the file passed with
+`--mcp-config` as shown in [the plugin guide](trayo/README.md). Strict mode excludes the
+server configuration bundled with the plugin.
 
 ## Codex
 

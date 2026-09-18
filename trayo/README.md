@@ -1,6 +1,6 @@
 # Trayo plugin
 
-Use Trayo from Claude Code, Claude Cowork, Codex, and other clients that support remote MCP servers. The plugin bundles the Trayo MCP server with nine job skills: build an account list, research an account or a person, scan for a signal, monitor accounts, find stakeholders, enrich contacts, recent movers, and the core discovery loop.
+Use Trayo from Claude Code, Claude Cowork, Codex, and other clients that support remote MCP servers. The plugin bundles the Trayo MCP server with ten job skills: onboard a new workspace, build an account list, research an account or a person, scan for a signal, monitor accounts, find stakeholders, enrich contacts, recent movers, and the core discovery loop.
 
 Every client connects to `https://api.trayo.ai/v1/mcp`. OAuth clients can sign in with Trayo and inherit
 their current workspace permissions. Workspace API keys from **Admin → API keys** remain supported.
@@ -98,7 +98,7 @@ shows Trayo as disabled, re-enable it there; the strict flag does not reset a di
 1. Open **Customize → Plugins**.
 2. Select **+ → Add marketplace → Add from repository**.
 3. Add `https://github.com/trayoai/trayo-plugin`.
-4. Install **Trayo** to add its nine job skills.
+4. Install **Trayo** to add its ten job skills.
 5. Add a custom connector named **Trayo** with URL `https://api.trayo.ai/v1/mcp`.
 6. Choose **No sign-in**, then add the request header `x-api-key` with your workspace API key as its value.
 7. Start a new task and ask Claude to call `trayo_whoami`.
@@ -124,7 +124,7 @@ codex plugin list --json
 codex mcp get trayo --json
 ```
 
-The plugin list should show Trayo version 0.5.5. The MCP result should show the fixed URL and `TRAYO_API_KEY` as its bearer token variable. Then ask Codex to call `trayo_whoami`.
+The plugin list should show Trayo version 0.5.8. The MCP result should show the fixed URL and `TRAYO_API_KEY` as its bearer token variable. Then ask Codex to call `trayo_whoami`.
 
 ## Other MCP clients
 
@@ -133,7 +133,7 @@ Add a streamable HTTP MCP server with:
 - URL: `https://api.trayo.ai/v1/mcp`
 - Header: `X-API-Key: <key>` or `Authorization: Bearer <key>`
 
-The nine job skills are included for clients that support this plugin marketplace format. Call `trayo_whoami` after setup to verify the connection and key.
+The ten job skills are included for clients that support this plugin marketplace format. Call `trayo_whoami` after setup to verify the connection and key.
 
 ## Your key
 
@@ -142,10 +142,11 @@ The key needs the scopes listed under Notes. Keep it in the client's masked secr
 ## What you get
 
 - Twenty-six tools, always loaded (no tool-search deferral): `trayo_whoami`, `trayo_get_workspace`, `trayo_set_workspace`, `trayo_import_accounts`, `trayo_list_accounts`, `trayo_list_signals`, `trayo_create_signal`, `trayo_run_discovery`, `trayo_get_discovery`, `trayo_list_events`, `trayo_find_companies`, `trayo_find_lookalikes`, `trayo_find_people`, `trayo_list_industries`, `trayo_search_stakeholders`, `trayo_research_company`, `trayo_research_person`, `trayo_search_job_changes`, `trayo_add_to_list`, `trayo_list_lists`, `trayo_get_list_members`, `trayo_add_people`, `trayo_list_people`, `trayo_enrich_emails`, `trayo_enrich_phones`, `trayo_get_contacts`.
-- Nine skills, invoked automatically when you describe the job: `/trayo:build-account-list`, `/trayo:research-account`, `/trayo:research-person`, `/trayo:scan-for-signal`, `/trayo:monitor-accounts`, `/trayo:find-stakeholders`, `/trayo:enrich-contacts`, `/trayo:recent-movers`, `/trayo:discover-signals`.
+- Ten skills, invoked automatically when you describe the job: `/trayo:onboard-workspace`, `/trayo:build-account-list`, `/trayo:research-account`, `/trayo:research-person`, `/trayo:scan-for-signal`, `/trayo:monitor-accounts`, `/trayo:find-stakeholders`, `/trayo:enrich-contacts`, `/trayo:recent-movers`, `/trayo:discover-signals`.
 
 ## What it does
 
+- **Configure a brand-new workspace** — `/trayo:onboard-workspace`: `trayo_get_workspace` (check it isn't already set up) → `trayo_set_workspace` → `trayo_find_companies` + `trayo_import_accounts` → `trayo_create_signal` → `trayo_run_discovery`. The API-only equivalent of what the app's own onboarding does.
 - **Build accounts from criteria** — `/trayo:build-account-list`: `trayo_find_companies` → `trayo_import_accounts` → `trayo_add_to_list`.
 - **Resume from workspace state** — `trayo_list_accounts` returns existing accounts and their reusable ids; `trayo_list_industries` returns the exact values accepted by industry filters.
 - **Find companies like these** — `trayo_find_lookalikes`: send `companies` and `limit`, get ranked high/medium/low matches with reusable `companyId` values. Supply an exact company ID, or resolve by LinkedIn company URL, then website, then name. Nothing is saved unless you import the results.
@@ -201,4 +202,4 @@ Market research. Ranking accounts by signal. Outbound, CRM push and routing — 
 ## Notes
 
 - The key needs the scopes of the routes the tools wrap: `accounts:read`, `accounts:write`, `people:read`, `people:write`, `people:enrich_email`, `people:enrich_phone`, `settings:read`, `settings:write`, `events:read`, `events:write`, `research:trigger`. The two enrichment scopes are separate on purpose: a key can be allowed to find email addresses and refused phone numbers.
-- Full API reference: `https://api.trayo.ai/v1/openapi.json`, with `https://api.trayo.ai/llms.txt` as the agent-facing summary.
+- Full API reference: [openapi.json](https://api.trayo.ai/v1/openapi.json), with [llms.txt](https://api.trayo.ai/llms.txt) as the agent-facing summary.

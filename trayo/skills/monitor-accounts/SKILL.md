@@ -25,8 +25,8 @@ A settled run with no reported error does not prove that every saved account was
 ## Backfill and report
 
 1. Record `checkStartedAt` as a full ISO-8601 timestamp before starting the backfill.
-2. Call `trayo_run_discovery` with the saved `accountIds`, selected `signalKeys`, `lookbackDays: 90`, and `waitSeconds: 45`. Limit each run to 200 accounts so `blockedSignals` can return every affected account ID. Wait for each run to settle before starting the next.
-3. While `settled` is false, call `trayo_get_discovery` with its `runId` and `waitSeconds: 45`. Wait for `settledAt` before reporting counts or reading final results.
+2. Call `trayo_run_discovery` with the saved `accountIds`, selected `signalKeys`, `lookbackDays: 90`, and `waitSeconds: 45`. A run started here covers at most 200 accounts and 10 signals, so split the saved accounts into batches of up to 200 and the watched signals into groups of up to 10, and start one run per batch × group pairing, alongside each other, so every account meets every signal. Larger runs, and several in flight at once, take longer to settle; read `progress` and the events as they land rather than waiting on one run before starting the next.
+3. While `settled` is false, call `trayo_get_discovery` with its `runId` and `waitSeconds: 45`. The answer carries `progress` and the events written so far, but wait for `settledAt` before reporting counts or reading final results.
 4. Read `run.error` and `run.blockedSignals`. Apply the recovery steps below and report failures and blocked accounts.
 5. For each settled run, call `trayo_list_events` with these arguments:
 
@@ -34,7 +34,7 @@ A settled run with no reported error does not prove that every saved account was
    { "discoveryRunId": "<run.id>", "expand": "all" }
    ```
 
-   Follow `nextCursor` until `hasMore` is false. Keep `discoveryRunId` and `expand` on every page. This filter limits results to that run's accounts, signals, and lookback window, including matches from earlier runs.
+   Follow `nextCursor` until `hasMore` is false. Keep `discoveryRunId` and `expand` on every page. This filter limits results to that run's accounts, signals, and lookback window, including matches from earlier runs. When the backfill ran as several batch × group runs, an event that matched signals in more than one group comes back under more than one `discoveryRunId`: merge the pages of all runs and deduplicate by event `id` before counting, reporting, saving the digest, or recording delivered IDs.
 6. Report `accountName`, `title`, `eventDate`, matched `signalKeys`, and `whyItMatters`. If `whyItMatters` is null, use `summary`. Include people and their `reasoning` when present. Do not infer an empty result from `eventsNew: 0`.
 7. After reading all pages and saving the digest, store the delivered event IDs to remove duplicates between checks. Store `lastCheckedAt = checkStartedAt` only when no reported failures or blocked accounts remain. If a read or digest save fails, keep the previous checkpoint too.
 
@@ -42,7 +42,7 @@ A settled run with no reported error does not prove that every saved account was
 
 1. Load the saved list with `trayo_get_list_members`, using `listId` and `kind: "account"`. If needed, find the saved list through `trayo_list_lists`. Read every member page before collecting the account IDs. Keep `listId` and `kind` on every page.
 2. Record a new `checkStartedAt` before discovery or event reads. Keep the previous `lastCheckedAt` unchanged during this check.
-3. Run discovery for every saved account and all watched signals, even when `monitoring.enabled` is true. Account assignments can change after setup, so neither an earlier import nor a successful backfill confirms current automatic coverage. Wait for every run to settle and apply the backfill batching and recovery rules. Include reported failures and blocked accounts in the digest.
+3. Run discovery for every saved account and all watched signals, even when `monitoring.enabled` is true. Account assignments can change after setup, so neither an earlier import nor a successful backfill confirms current automatic coverage. Apply the backfill batching (one run per batch × group pairing) and recovery rules, and wait for every run to settle before the digest. Include reported failures and blocked accounts in the digest.
 4. For each saved account ID, call `trayo_list_events` with these arguments:
 
    ```json
